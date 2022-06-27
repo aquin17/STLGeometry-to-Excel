@@ -5,9 +5,8 @@ import xlsxwriter
 
 class STLGeometryToExcel:
     
-    def __init__(self, file_path):
-        self.file_path = file_path 
-        self.mesh = trimesh.load(self.file_path)
+    def __init__(self, directory):
+        self.directory = directory 
 
     def calc_stl_bounding_box_volume(self):
         self.bounding_box = self.mesh.bounding_box.extents 
@@ -16,7 +15,9 @@ class STLGeometryToExcel:
             bounding_box_volume = bounding_box_volume * self.bounding_box[i];
         return(bounding_box_volume)
 
-    def calc_stl_geometry_data(self):
+    def calc_stl_geometry_data(self, single_file):
+        self.mesh = trimesh.load(single_file)
+
         self.stl_volume = self.mesh.volume
 
         self.bounding_box_volume = self.calc_stl_bounding_box_volume()
@@ -29,14 +30,14 @@ class STLGeometryToExcel:
 
         self.surface_area = self.mesh.area
 
-        self.stl_file_name = os.path.basename(self.file_path)
+        self.stl_file_name = os.path.basename(single_file)
 
-        return(self.stl_file_name)
+        self.stl_data = [self.stl_file_name, self.stl_volume, self.bounding_box_volume, self.height, self.x_length, self.y_length, self.surface_area, self.bottom_area]
 
-    def single_stl_to_excel(self, excel_file):
-        labels = ["Part Name", "Part Volume", "Bounding Box Volume", "Height", "X Length", "Y Length", "Surface Area", "Bottom Area"]
-        stl_data = [self.stl_file_name, self.stl_volume, self.bounding_box_volume, self.height, self.x_length, self.y_length, self.surface_area, self.bottom_area]
-        
+        return(self.stl_data)
+
+    def add_excel_data_labels(self, excel_file):
+        labels = ["part name", "part volume", "bounding box volume", "height", "x length", "y length", "surface area", "bottom area"]
         workbook = xlsxwriter.Workbook(excel_file)
         worksheet = workbook.add_worksheet()
 
@@ -46,11 +47,33 @@ class STLGeometryToExcel:
             worksheet.write(row,column,label)
             column += 1 
 
-        row = 1
-        column = 0 
-        for data in stl_data:
-            worksheet.write(row,column,data)
-            column +=1
+        workbook.close()
+        #workbook = xlsxwriter.Workbook(excel_file)
+        #worksheet = workbook.add_worksheet()
+        #worksheet.write(0,0,"beans")
+        #workbook.close()
+
+    def write_directory_data_to_excel(self,excel_file):
+
+        self.add_excel_data_labels(excel_file)
+
+        workbook = xlsxwriter.Workbook(excel_file)
+        worksheet = workbook.add_worksheet()
+        working_directory = os.fsencode(self.directory)
+        file_list = os.listdir(working_directory)
+
+        for file in file_list:
+            file_name = os.fsdecode(file)
+            if file_name.endswith(".stl"):
+                self.calc_stl_geometry_data(self.directory + "\\" + file_name)
+                
+                row = file_list.index(file) 
+                column = 0
+                for data in self.stl_data:
+                    worksheet.write(row,column,data)
+                    column +=1
+            else:
+                continue
 
         workbook.close()
 
@@ -60,11 +83,10 @@ class STLGeometryToExcel:
 
 
 
-file_path = "C:\CAD Files\Iso-Boundingbox Test\Screw algorithm test\scew_model_test.stl"
-stlGeometryToExcel = STLGeometryToExcel(file_path)
-stlGeometryToExcel.calc_stl_geometry_data()
+directory_path = "C:\CAD Files\Iso-Boundingbox Test\Screw algorithm test"
+stlGeometryToExcel = STLGeometryToExcel(directory_path)
 
-stlGeometryToExcel.single_stl_to_excel("ReverseEngineeringTests.xlsx")
+stlGeometryToExcel.write_directory_data_to_excel("ReverseEngineeringTests.xlsx")
 
 
 
